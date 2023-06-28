@@ -17,10 +17,7 @@ contract IChannel {
         uint32 chainId1;
         uint32 chainId2;
         uint8 status;
-        uint128 amountC1U1;
-        uint128 amountC1U2;
-        uint128 amountC2U1;
-        uint128 amountC2U2;
+        uint128[2][2] amounts;
     }
 
     struct Signature {

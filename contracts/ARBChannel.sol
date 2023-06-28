@@ -21,8 +21,25 @@ contract ARBChannel is IChannel {
     }
 
     function open(MetaData memory meta, Signature memory sig1, Signature memory sig2) external {       
-        bytes32 h = keccak256(abi.encodePacked("open", meta.owner1, meta.owner2, meta.chainId1, meta.chainId2, meta.token1, meta.token2, 
-        meta.amountC1U1, meta.amountC1U2, meta.amountC2U1, meta.amountC2U2, meta.L1LockTime, meta.L2LockTime, meta.releaseTime, meta.challengeTime));
+        bytes32 h = keccak256(
+            bytes.concat(
+                abi.encodePacked(
+                    "open",
+                    meta.owner1,
+                    meta.owner2,
+                    meta.chainId1,
+                    meta.chainId2,
+                    meta.token1,
+                    meta.token2),
+                abi.encodePacked(
+                    meta.amounts,
+                    meta.L1LockTime,
+                    meta.L2LockTime,
+                    meta.releaseTime,
+                    meta.challengeTime
+                )
+            )
+        );
         uint256 channelId = uint256(h);
         require(meta.chainId1 == chainId || meta.chainId2 == chainId, "wrong chainId");
         require(metas[channelId].owner1 == address(0), "already exist!");
@@ -31,11 +48,11 @@ contract ARBChannel is IChannel {
         require(meta.owner2 == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
 
         if (meta.chainId1 == chainId) {
-            meta.token1.transferFrom(meta.owner1, address(this), meta.amountC1U1);
-            meta.token1.transferFrom(meta.owner2, address(this), meta.amountC1U2);
+            meta.token1.transferFrom(meta.owner1, address(this), meta.amounts[0][0]);
+            meta.token1.transferFrom(meta.owner2, address(this), meta.amounts[0][1]);
         } else {
-            meta.token2.transferFrom(meta.owner1, address(this), meta.amountC2U1);
-            meta.token2.transferFrom(meta.owner2, address(this), meta.amountC2U2);
+            meta.token2.transferFrom(meta.owner1, address(this), meta.amounts[1][0]);
+            meta.token2.transferFrom(meta.owner2, address(this), meta.amounts[1][1]);
         }
         meta.status = 1;
         metas[channelId] = meta;
@@ -46,8 +63,8 @@ contract ARBChannel is IChannel {
         MetaData storage mt = metas[channelId];
         bytes32 h = keccak256(abi.encodePacked("close", channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2, mt.chainId1, mt.chainId2));
 
-        require(mt.amountC1U1 + mt.amountC1U2 == amountC1U1 + amountC1U2 
-                && mt.amountC2U1 + mt.amountC2U2 == amountC2U1 + amountC2U2, "wrong amount!");
+        require(mt.amounts[0][0] + mt.amounts[0][1] == amountC1U1 + amountC1U2 
+                && mt.amounts[1][0] + mt.amounts[1][1] == amountC2U1 + amountC2U2, "wrong amount!");
         require(mt.status == 1, "wrong stage!");
         require(mt.owner1 == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
         require(mt.owner2 == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
@@ -73,11 +90,11 @@ contract ARBChannel is IChannel {
         require(mt.owner2 == owner2, "Invalid owner2!");
         require(mt.status == 1, "wrong stage!");
         if (mt.chainId1 == chainId) {
-            require(mt.amountC1U1 + mt.amountC1U2 == amount1 + amount2, "wrong amount!");
+            require(mt.amounts[0][0] + mt.amounts[0][1] == amount1 + amount2, "wrong amount!");
             mt.token1.transfer(mt.owner1, amount1);
             mt.token1.transfer(mt.owner2, amount2);
         } else {
-            require(mt.amountC2U1 + mt.amountC2U2 == amount1 + amount2, "wrong amount!");
+            require(mt.amounts[1][0] + mt.amounts[1][1] == amount1 + amount2, "wrong amount!");
             mt.token2.transfer(mt.owner1, amount1);
             mt.token2.transfer(mt.owner2, amount2);
         }
@@ -92,11 +109,11 @@ contract ARBChannel is IChannel {
         require(mt.L2LockTime < block.timestamp, "not time yet!");
 
         if (mt.chainId1 == chainId) {         
-            mt.token1.transfer(mt.owner1, mt.amountC1U1);
-            mt.token1.transfer(mt.owner2, mt.amountC1U2);
+            mt.token1.transfer(mt.owner1, mt.amounts[0][0]);
+            mt.token1.transfer(mt.owner2, mt.amounts[0][1]);
         } else {
-            mt.token2.transfer(mt.owner1, mt.amountC2U1);
-            mt.token2.transfer(mt.owner2, mt.amountC2U2);
+            mt.token2.transfer(mt.owner1, mt.amounts[1][0]);
+            mt.token2.transfer(mt.owner2, mt.amounts[1][1]);
         }
 
         mt.status = 2;
