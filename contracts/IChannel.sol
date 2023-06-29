@@ -3,21 +3,22 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-// L2LockTime < (L1LockTime + challengeTime) < releaseTime
+// L2LockTime < L1DisputeTime < (L1LockTime - challengeTime) < L1LockTime < releaseTime
 contract IChannel {
     struct MetaData {
         address owner1;
-        uint64 L1LockTime;
-        uint32 challengeTime;
+        uint48 L2LockTime; //  Layer2 锁定时间，在L2LockTime之前，用户可以与Layer2合约进行交互
+        uint48 releaseTime; // 释放时间，超过releaseTime没有close的channel可以赎回
         address owner2;
-        uint64 L2LockTime;
+        uint48 L1DisputeTime; // 可在L1上进行争议解决的最早时间
+        uint48 L1LockTime; // 可在L1上进行争议解决的最晚时间
         IERC20 token1;
-        uint64 releaseTime;
+        uint32 challengeTime; // L1上用户响应挑战的时间
         IERC20 token2;
-        uint32 chainId1;
+        uint32 chainId1; // chainId，让layer1合约可以触发正确的layer2合约
         uint32 chainId2;
         uint8 status;
-        uint128[2][2] amounts;
+        uint128[2][2] amounts; // 用户金额
     }
 
     struct Signature {
