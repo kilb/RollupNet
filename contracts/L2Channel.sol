@@ -2,9 +2,9 @@
 pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./IChannel.sol";
+import "./Channel.sol";
 
-contract L2Channel is IChannel {
+contract L2Channel is Channel {
     uint256 chainId;
 
     mapping(uint256 => MetaData) public metas;
@@ -15,26 +15,7 @@ contract L2Channel is IChannel {
 
     // channel id有hash计算得到，避免了碰撞，也避免了伪造
     function open(MetaData memory meta, Signature memory sig1, Signature memory sig2) external {       
-        bytes32 h = keccak256(
-            bytes.concat(
-                abi.encodePacked(
-                    "open",
-                    meta.owner1,
-                    meta.owner2,
-                    meta.chainId1,
-                    meta.chainId2,
-                    meta.token1,
-                    meta.token2),
-                abi.encodePacked(
-                    meta.amounts,
-                    meta.L1DisputeTime,
-                    meta.L1LockTime,
-                    meta.L2LockTime,
-                    meta.releaseTime,
-                    meta.challengeTime
-                )
-            )
-        );
+        bytes32 h = openHash(meta);
         uint256 channelId = uint256(h);
         require(meta.chainId1 == chainId || meta.chainId2 == chainId, "wrong chainId");
         require(metas[channelId].owner1 == address(0), "already exist!");
@@ -58,7 +39,7 @@ contract L2Channel is IChannel {
     function close(uint256 channelId, uint256 amountC1U1, uint256 amountC1U2, uint256 amountC2U1, uint256 amountC2U2, 
                    Signature memory sig1, Signature memory sig2) external {
         MetaData storage mt = metas[channelId];
-        bytes32 h = keccak256(abi.encodePacked("close", channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2, mt.chainId1, mt.chainId2));
+        bytes32 h = keccak256(abi.encodePacked("close", channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2));
 
         require(mt.amounts[0][0] + mt.amounts[0][1] == amountC1U1 + amountC1U2 
                 && mt.amounts[1][0] + mt.amounts[1][1] == amountC2U1 + amountC2U2, "wrong amount!");

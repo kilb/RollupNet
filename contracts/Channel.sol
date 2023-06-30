@@ -4,7 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // L2LockTime < L1DisputeTime < (L1LockTime - challengeTime) < L1LockTime < releaseTime
-contract IChannel {
+contract Channel {
     struct MetaData {
         address owner1;
         uint48 L2LockTime; //  Layer2 锁定时间，在L2LockTime之前，用户可以与Layer2合约进行交互
@@ -25,5 +25,29 @@ contract IChannel {
         uint8 v;
         bytes32 r;
         bytes32 s;
+    }
+
+    function openHash(MetaData memory meta) internal pure returns (bytes32) {
+        bytes32 h = keccak256(
+            bytes.concat(
+                abi.encodePacked(
+                    "open",
+                    meta.owner1,
+                    meta.owner2,
+                    meta.chainId1,
+                    meta.chainId2,
+                    meta.token1,
+                    meta.token2),
+                abi.encodePacked(
+                    meta.amounts,
+                    meta.L1DisputeTime,
+                    meta.L1LockTime,
+                    meta.L2LockTime,
+                    meta.releaseTime,
+                    meta.challengeTime
+                )
+            )
+        );
+        return h;
     }
 }
