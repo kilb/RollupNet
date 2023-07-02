@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "./Channel.sol";
+import "./IMessenger.sol";
 
 // TODO: 如果用户用V(n-1)发起了L1挑战，则另一个用户可以在临近挑战期结束时在L2上发起Vn的close交易（或抢占L1->L2交易），这时应该怎么办？
 // 用户仅能在L2LockTime之后发起挑战，如果用户能在L2LockTime之前发起挑战，就会存在这样的问题
@@ -12,32 +13,7 @@ import "./Channel.sol";
 
 // HashTimeLock 其实也假设了时间波动不会太大，安全性假设与我们的方案区别不大
 
-interface IOPMessenger {
-    function sendMessage(address _target, bytes calldata _message, uint32 _minGasLimit) external payable;
-}
 
-interface IARBMessenger {
-     function sendL2Message(bytes calldata messageData) external returns (uint256);
-     // `l1CallValue (also referred to as deposit)`: Not a real function parameter, it is rather the callValue that is sent along with the transaction
-     // `address to`: The destination L2 address
-     // `uint256 l2CallValue`: The callvalue for retryable L2 message that is supplied within the deposit (l1CallValue)
-     // `uint256 maxSubmissionCost`: The maximum amount of ETH to be paid for submitting the ticket. This amount is (1) supplied within the deposit (l1CallValue) to be later deducted from sender's L2 balance and is (2) directly proportional to the size of the retryable’s data and L1 basefee  
-     // `address excessFeeRefundAddress`: The L2 address to which the excess fee is credited (l1CallValue - (autoredeem ? ticket execution cost : submission cost) - l2CallValue)
-     // `address callValueRefundAddress`: The L2 address to which the l2CallValue is credited if the ticket times out or gets cancelled (this is also called the `beneficiary`, who's got a critical permission to cancel the ticket)
-     // `uint256 gasLimit`: Maximum amount of gas used to cover L2 execution of the ticket
-     // `uint256 maxFeePerGas`: The gas price bid for L2 execution of the ticket that is supplied within the deposit (l1CallValue)
-     // `bytes calldata data`: The calldata to the destination L2 address
-     function createRetryableTicket(
-        address to,
-        uint256 l2CallValue,
-        uint256 maxSubmissionCost,
-        address excessFeeRefundAddress,
-        address callValueRefundAddress,
-        uint256 gasLimit,
-        uint256 maxFeePerGas,
-        bytes calldata data
-    ) external payable returns (uint256);
-}
 
 contract L1Manager is AccessControl, Channel {
     struct Task {
@@ -53,13 +29,17 @@ contract L1Manager is AccessControl, Channel {
 
     mapping(uint256 => address) public L2Contracts;
     mapping(uint256 => Task) public tasks;
-
+    
+    uint256 gasLimit = 1000000;
     IOPMessenger opMessenger;
-    IARBMessenger arbMessenger;
+    IArbMessenger arbMessenger;
+    IZKMessenger zkMessenger;
+    IPolyMessenger polyMessenger;
+    IScrollMessenger scrollMessenger;
     
     constructor(address _opMessenger, address _arbMessenger) {
         opMessenger = IOPMessenger(_opMessenger);
-        arbMessenger = IARBMessenger(_arbMessenger);
+        arbMessenger = IArbMessenger(_arbMessenger);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
@@ -83,7 +63,7 @@ contract L1Manager is AccessControl, Channel {
         }
     }
 
-    function agreeRedeem(MetaData memory meta, Signature memory sig1, Signature memory sig2) external {
+    function agreeRedeem(MetaData memory meta, Signature memory sig1, Signature memory sig2) external payable {
         bytes32 h = openHash(meta);
         uint256 channelId = uint256(h);
 
@@ -98,7 +78,7 @@ contract L1Manager is AccessControl, Channel {
     }
 
     function forceClose(MetaData memory meta, uint256 amountC1U1, uint256 amountC1U2, uint256 amountC2U1, 
-                        uint256 amountC2U2, Signature memory sig1, Signature memory sig2) external {
+                        uint256 amountC2U2, Signature memory sig1, Signature memory sig2) external payable {
         uint256 channelId = uint256(openHash(meta));
 
         bytes32 h = keccak256(abi.encodePacked("close", channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2));
@@ -116,7 +96,7 @@ contract L1Manager is AccessControl, Channel {
     
     // challenge 不改变task过期时间，因为不需要来回反复挑战
     function challenge(MetaData memory meta, uint256 version, uint256 amountC1U1, uint256 amountC1U2, 
-                       uint256 amountC2U1, uint256 amountC2U2, Signature memory sig1, Signature memory sig2) external {
+                       uint256 amountC2U1, uint256 amountC2U2, Signature memory sig1, Signature memory sig2) external payable {
         uint256 channelId = uint256(openHash(meta));
         bytes32 h = keccak256(abi.encodePacked("update", version, channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2));
         require(meta.owner1 == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
@@ -140,7 +120,7 @@ contract L1Manager is AccessControl, Channel {
     }
 
     // 如果时间到期了未挑战，则需claim
-    function claim(MetaData memory meta) external {
+    function claim(MetaData memory meta) external payable {
         uint256 channelId = uint256(openHash(meta));
         require(tasks[channelId].version == 1 && tasks[channelId].status == 0, "wrong stage!");
         require(tasks[channelId].expire < block.timestamp, "not time!");
@@ -149,7 +129,7 @@ contract L1Manager is AccessControl, Channel {
     }
 
     function OPL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
-        opMessenger.sendMessage(
+        opMessenger.sendMessage{value: msg.value}(
             L2Contracts[chainId],
             abi.encodeWithSignature(
                 "forceClose(uint256,uint256,uint256)",
@@ -157,19 +137,19 @@ contract L1Manager is AccessControl, Channel {
                 amount1,
                 amount2
             ),
-            1000000 // use whatever gas limit you want
+            uint32(gasLimit) // use whatever gas limit you want
         );
     }
 
     function ARBL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
-        arbMessenger.createRetryableTicket(
+        arbMessenger.createRetryableTicket{value: msg.value}(
             L2Contracts[chainId],
             msg.value,
             msg.value,
             tx.origin,
             tx.origin,
-            1000000,
-            msg.value / 1000000 - 10,
+            gasLimit,
+            msg.value / gasLimit - 10,
             abi.encodeWithSignature(
                 "forceClose(uint256,uint256,uint256)",
                 chainId,
@@ -179,6 +159,48 @@ contract L1Manager is AccessControl, Channel {
         );
     }
 
+    function ZKL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+        zkMessenger.requestL2Transaction{value: msg.value}(
+            L2Contracts[chainId],
+            0,
+            abi.encodeWithSignature(
+                "forceClose(uint256,uint256,uint256)",
+                chainId,
+                amount1,
+                amount2
+            ),
+            gasLimit,
+            msg.value / gasLimit - 10,
+            new bytes[](0),
+            tx.origin
+        );
+    }
 
+    function PolyL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+        polyMessenger.bridgeMessage{value: msg.value}(
+            1,
+            L2Contracts[chainId],
+            true,
+            abi.encodeWithSignature(
+                "forceClose(uint256,uint256,uint256)",
+                chainId,
+                amount1,
+                amount2
+            )
+        );
+    }
 
+    function ScrollL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+        scrollMessenger.sendMessage{value: msg.value}(
+            L2Contracts[chainId],
+            0,
+            abi.encodeWithSignature(
+                "forceClose(uint256,uint256,uint256)",
+                chainId,
+                amount1,
+                amount2
+            ),
+            gasLimit
+        );
+    }
 }
