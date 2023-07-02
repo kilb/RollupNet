@@ -17,8 +17,8 @@ contract ARBChannel is L2Channel {
         _;
     }
 
-    function forceClose(uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) external onlyL1Contract {
-        _forceClose(channelId, owner1, owner2, amount1, amount2);
+    function forceClose(uint256 channelId, uint256 amount1, uint256 amount2) external onlyL1Contract {
+        _forceClose(channelId, amount1, amount2);
     }
 
     function undoL1ToL2Alias(address L1_Contract_Address) public pure returns (address) {

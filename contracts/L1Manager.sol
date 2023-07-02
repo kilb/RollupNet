@@ -12,6 +12,33 @@ import "./Channel.sol";
 
 // HashTimeLock 其实也假设了时间波动不会太大，安全性假设与我们的方案区别不大
 
+interface IOPMessenger {
+    function sendMessage(address _target, bytes calldata _message, uint32 _minGasLimit) external payable;
+}
+
+interface IARBMessenger {
+     function sendL2Message(bytes calldata messageData) external returns (uint256);
+     // `l1CallValue (also referred to as deposit)`: Not a real function parameter, it is rather the callValue that is sent along with the transaction
+     // `address to`: The destination L2 address
+     // `uint256 l2CallValue`: The callvalue for retryable L2 message that is supplied within the deposit (l1CallValue)
+     // `uint256 maxSubmissionCost`: The maximum amount of ETH to be paid for submitting the ticket. This amount is (1) supplied within the deposit (l1CallValue) to be later deducted from sender's L2 balance and is (2) directly proportional to the size of the retryable’s data and L1 basefee  
+     // `address excessFeeRefundAddress`: The L2 address to which the excess fee is credited (l1CallValue - (autoredeem ? ticket execution cost : submission cost) - l2CallValue)
+     // `address callValueRefundAddress`: The L2 address to which the l2CallValue is credited if the ticket times out or gets cancelled (this is also called the `beneficiary`, who's got a critical permission to cancel the ticket)
+     // `uint256 gasLimit`: Maximum amount of gas used to cover L2 execution of the ticket
+     // `uint256 maxFeePerGas`: The gas price bid for L2 execution of the ticket that is supplied within the deposit (l1CallValue)
+     // `bytes calldata data`: The calldata to the destination L2 address
+     function createRetryableTicket(
+        address to,
+        uint256 l2CallValue,
+        uint256 maxSubmissionCost,
+        address excessFeeRefundAddress,
+        address callValueRefundAddress,
+        uint256 gasLimit,
+        uint256 maxFeePerGas,
+        bytes calldata data
+    ) external payable returns (uint256);
+}
+
 contract L1Manager is AccessControl, Channel {
     struct Task {
         address caller; // 使用caller的目的是如果2个用户都相应了，那么可以立马释放
@@ -26,8 +53,13 @@ contract L1Manager is AccessControl, Channel {
 
     mapping(uint256 => address) public L2Contracts;
     mapping(uint256 => Task) public tasks;
+
+    IOPMessenger opMessenger;
+    IARBMessenger arbMessenger;
     
-    constructor() {
+    constructor(address _opMessenger, address _arbMessenger) {
+        opMessenger = IOPMessenger(_opMessenger);
+        arbMessenger = IARBMessenger(_arbMessenger);
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
@@ -81,12 +113,72 @@ contract L1Manager is AccessControl, Channel {
         }
 
     }
+    
+    // challenge 不改变task过期时间，因为不需要来回反复挑战
+    function challenge(MetaData memory meta, uint256 version, uint256 amountC1U1, uint256 amountC1U2, 
+                       uint256 amountC2U1, uint256 amountC2U2, Signature memory sig1, Signature memory sig2) external {
+        uint256 channelId = uint256(openHash(meta));
+        bytes32 h = keccak256(abi.encodePacked("update", version, channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2));
+        require(meta.owner1 == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
+        require(meta.owner2 == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
 
-    function challenge(MetaData memory meta, Signature memory sig1, Signature memory sig2) external {
-        bytes32 h = openHash(meta);
-        uint256 channelId = uint256(h);
+        require(tasks[channelId].status == 0 && tasks[channelId].version > 0, "wrong stage!");
+        require(tasks[channelId].expire >= block.timestamp, "time is up!");
+        if (version > tasks[channelId].version) {
+            tasks[channelId].version = uint32(version);
+            tasks[channelId].amountC1U1 = uint128(amountC1U1);
+            tasks[channelId].amountC1U2 = uint128(amountC1U2);
+            tasks[channelId].amountC2U1 = uint128(amountC2U1);
+            tasks[channelId].amountC2U2 = uint128(amountC2U2);
+        }
 
-
+        if ((msg.sender == meta.owner1 && tasks[channelId].caller == meta.owner2) 
+        ||(msg.sender == meta.owner2 && tasks[channelId].caller == meta.owner1)) {
+            tasks[channelId].status = 1;
+            // TODO: L1 to L2 message
+        }
     }
+
+    // 如果时间到期了未挑战，则需claim
+    function claim(MetaData memory meta) external {
+        uint256 channelId = uint256(openHash(meta));
+        require(tasks[channelId].version == 1 && tasks[channelId].status == 0, "wrong stage!");
+        require(tasks[channelId].expire < block.timestamp, "not time!");
+        tasks[channelId].status = 1;
+        // TODO: L1 to L2 message
+    }
+
+    function OPL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+        opMessenger.sendMessage(
+            L2Contracts[chainId],
+            abi.encodeWithSignature(
+                "forceClose(uint256,uint256,uint256)",
+                chainId,
+                amount1,
+                amount2
+            ),
+            1000000 // use whatever gas limit you want
+        );
+    }
+
+    function ARBL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+        arbMessenger.createRetryableTicket(
+            L2Contracts[chainId],
+            msg.value,
+            msg.value,
+            tx.origin,
+            tx.origin,
+            1000000,
+            msg.value / 1000000 - 10,
+            abi.encodeWithSignature(
+                "forceClose(uint256,uint256,uint256)",
+                chainId,
+                amount1,
+                amount2
+            )
+        );
+    }
+
+
 
 }

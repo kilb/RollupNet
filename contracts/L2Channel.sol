@@ -61,12 +61,10 @@ contract L2Channel is Channel {
     }
     
     // 接收L1指令进行操作，因为L1会进行判断，因此在此处不做太多判断
-    function _forceClose(uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) internal {
+    function _forceClose(uint256 channelId, uint256 amount1, uint256 amount2) internal {
         // require(msg.sender == L1Contract, "Not allowed!");
         MetaData storage mt = metas[channelId];
-
-        require(mt.owner1 == owner1, "Invalid owner1!");
-        require(mt.owner2 == owner2, "Invalid owner2!");
+        
         require(mt.status == 1, "wrong stage!");
         if (mt.chainId1 == chainId) {
             require(mt.amounts[0][0] + mt.amounts[0][1] == amount1 + amount2, "wrong amount!");
