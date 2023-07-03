@@ -32,6 +32,8 @@ contract L2Channel is Channel {
         }
         meta.status = 1;
         metas[channelId] = meta;
+        
+        emit ChannelOpen(channelId, meta);
     }
     
     // 主动close，需要在l2lockTime之前完成，防止用户临近releaseTime时提交close造成不一致
@@ -58,13 +60,14 @@ contract L2Channel is Channel {
         }
 
         mt.status = 2;
+        emit ChannelClose(channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2);
     }
     
     // 接收L1指令进行操作，因为L1会进行判断，因此在此处不做太多判断
     function _forceClose(uint256 channelId, uint256 amount1, uint256 amount2) internal {
         // require(msg.sender == L1Contract, "Not allowed!");
         MetaData storage mt = metas[channelId];
-        
+
         require(mt.status == 1, "wrong stage!");
         if (mt.chainId1 == chainId) {
             require(mt.amounts[0][0] + mt.amounts[0][1] == amount1 + amount2, "wrong amount!");
@@ -96,6 +99,10 @@ contract L2Channel is Channel {
 
         mt.status = 2;
     }
+
+    event ChannelOpen(uint256 indexed channelId, MetaData meta);
+    event ChannelClose(uint256 indexed channelId, uint256 amountC1U1, uint256 amountC1U2, uint256 amountC2U1, uint256 amountC2U2);
+    event ChannelRedeem(uint256 indexed channelId);
 
 }
 

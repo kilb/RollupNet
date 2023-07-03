@@ -89,7 +89,10 @@ contract L1Manager is AccessControl, Channel {
         if (tasks[channelId].status == 0) {
             tasks[channelId] = Task(msg.sender, 0xffffffff, uint48(block.timestamp), 1, 
                                uint128(amountC1U1), uint128(amountC1U2), uint128(amountC2U1), uint128(amountC2U2));
-            // TODO: L1 to L2 message
+            tasks[channelId].status = 1;
+            //L1 to L2 message
+            sendL2Message(meta.chainId1, channelId, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
+            sendL2Message(meta.chainId2, channelId, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
         }
 
     }
@@ -115,7 +118,9 @@ contract L1Manager is AccessControl, Channel {
         if ((msg.sender == meta.owner1 && tasks[channelId].caller == meta.owner2) 
         ||(msg.sender == meta.owner2 && tasks[channelId].caller == meta.owner1)) {
             tasks[channelId].status = 1;
-            // TODO: L1 to L2 message
+            //L1 to L2 message
+            sendL2Message(meta.chainId1, channelId, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
+            sendL2Message(meta.chainId2, channelId, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
         }
     }
 
@@ -125,15 +130,31 @@ contract L1Manager is AccessControl, Channel {
         require(tasks[channelId].version == 1 && tasks[channelId].status == 0, "wrong stage!");
         require(tasks[channelId].expire < block.timestamp, "not time!");
         tasks[channelId].status = 1;
-        // TODO: L1 to L2 message
+        //L1 to L2 message
+        sendL2Message(meta.chainId1, channelId, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
+        sendL2Message(meta.chainId2, channelId, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
     }
 
-    function OPL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+    function sendL2Message(uint256 chainId, uint256 channelId, uint256 amount1, uint256 amount2) private {
+        if (chainId == 10) {
+            OPL2Message(channelId, amount1, amount2);
+        } else if (chainId == 42161) {
+            ARBL2Message(channelId, amount1, amount2);
+        } else if (chainId == 324) {
+            ZKL2Message(channelId, amount1, amount2);
+        } else if (chainId == 1101) {
+            PolyL2Message(channelId, amount1, amount2);
+        } else if (chainId == 534352) {
+            ScrollL2Message(channelId, amount1, amount2);
+        }
+    }
+
+    function OPL2Message(uint256 channelId, uint256 amount1, uint256 amount2) private {
         opMessenger.sendMessage{value: msg.value}(
-            L2Contracts[chainId],
+            L2Contracts[10],
             abi.encodeWithSignature(
                 "forceClose(uint256,uint256,uint256)",
-                chainId,
+                channelId,
                 amount1,
                 amount2
             ),
@@ -141,9 +162,9 @@ contract L1Manager is AccessControl, Channel {
         );
     }
 
-    function ARBL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+    function ARBL2Message(uint256 channelId, uint256 amount1, uint256 amount2) private {
         arbMessenger.createRetryableTicket{value: msg.value}(
-            L2Contracts[chainId],
+            L2Contracts[42161],
             msg.value,
             msg.value,
             tx.origin,
@@ -152,20 +173,20 @@ contract L1Manager is AccessControl, Channel {
             msg.value / gasLimit - 10,
             abi.encodeWithSignature(
                 "forceClose(uint256,uint256,uint256)",
-                chainId,
+                channelId,
                 amount1,
                 amount2
             )
         );
     }
 
-    function ZKL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+    function ZKL2Message(uint256 channelId, uint256 amount1, uint256 amount2) private {
         zkMessenger.requestL2Transaction{value: msg.value}(
-            L2Contracts[chainId],
+            L2Contracts[324],
             0,
             abi.encodeWithSignature(
                 "forceClose(uint256,uint256,uint256)",
-                chainId,
+                channelId,
                 amount1,
                 amount2
             ),
@@ -176,27 +197,27 @@ contract L1Manager is AccessControl, Channel {
         );
     }
 
-    function PolyL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+    function PolyL2Message(uint256 channelId, uint256 amount1, uint256 amount2) private {
         polyMessenger.bridgeMessage{value: msg.value}(
             1,
-            L2Contracts[chainId],
+            L2Contracts[1101],
             true,
             abi.encodeWithSignature(
                 "forceClose(uint256,uint256,uint256)",
-                chainId,
+                channelId,
                 amount1,
                 amount2
             )
         );
     }
 
-    function ScrollL2Message(uint256 chainId, uint256 amount1, uint256 amount2) private {
+    function ScrollL2Message(uint256 channelId, uint256 amount1, uint256 amount2) private {
         scrollMessenger.sendMessage{value: msg.value}(
-            L2Contracts[chainId],
+            L2Contracts[534352],
             0,
             abi.encodeWithSignature(
                 "forceClose(uint256,uint256,uint256)",
-                chainId,
+                channelId,
                 amount1,
                 amount2
             ),
