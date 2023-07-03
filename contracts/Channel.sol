@@ -17,7 +17,6 @@ contract Channel {
         IERC20 token2;
         uint32 chainId1; // chainId，让layer1合约可以触发正确的layer2合约
         uint32 chainId2;
-        uint8 status;
         uint128[2][2] amounts; // 用户金额
     }
 

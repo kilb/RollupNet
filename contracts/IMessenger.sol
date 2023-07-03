@@ -40,6 +40,7 @@ interface IZKMessenger {
     ) external payable returns (bytes32 canonicalTxHash);
 }
 
+// https://github.com/0xPolygonHermez/zkevm-contracts/blob/main/contracts/interfaces/IPolygonZkEVMBridge.sol
 interface IPolyMessenger {
     // destinationNetwork   Network destination
     // destinationAddress	Address destination
