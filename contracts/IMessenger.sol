@@ -5,6 +5,31 @@ interface IOPMessenger {
     function sendMessage(address _target, bytes calldata _message, uint32 _minGasLimit) external payable;
 }
 
+// https://docs.metis.io/dev/protocol-in-detail/cross-domain-messaging
+interface IMetisMessenger {
+    /*************
+     * Variables *
+     *************/
+
+    function xDomainMessageSender() external view returns (address);
+
+    /********************
+     * Public Functions *
+     ********************/
+    
+    /**
+     * Sends a cross domain message to the target messenger.
+     * @param _target Target contract address.
+     * @param _message Message to send to the target.
+     * @param _gasLimit Gas limit for the provided message.
+     */
+    function sendMessage(
+        address _target,
+        bytes calldata _message,
+        uint32 _gasLimit
+    ) external payable;
+}
+
 interface IArbMessenger {
      function sendL2Message(bytes calldata messageData) external returns (uint256);
      // `l1CallValue (also referred to as deposit)`: Not a real function parameter, it is rather the callValue that is sent along with the transaction
@@ -105,4 +130,31 @@ interface IScrollMessenger {
     bytes calldata message,
     uint256 gasLimit
   ) external payable;
+
+  /// @notice Deposit ETH to some recipient's account in L2 and call the target contract.
+  /// @param to The address of recipient's account on L2.
+  /// @param amount The amount of ETH to be deposited.
+  /// @param data Optional data to forward to recipient's account.
+  /// @param gasLimit Gas limit required to complete the deposit on L2.
+  function depositETHAndCall(
+    address to,
+    uint256 amount,
+    bytes calldata data,
+    uint256 gasLimit
+  ) external payable;
+}
+
+// https://github.com/starkware-libs/cairo-lang/blob/54d7e92a703b3b5a1e07e9389608178129946efc/src/starkware/starknet/solidity/IStarknetMessaging.sol#L13
+interface IStarknetMessenger {
+    /**
+      Sends a message to an L2 contract.
+      This function is payable, the payed amount is the message fee.
+
+      Returns the hash of the message and the nonce of the message.
+    */
+    function sendMessageToL2(
+        uint256 toAddress,
+        uint256 selector,
+        uint256[] calldata payload
+    ) external payable returns (bytes32, uint256);
 }
