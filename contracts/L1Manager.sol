@@ -37,29 +37,39 @@ contract L1Manager is Ownable, Channel {
     uint256 gasLimit = 1000000;
     // testnet 0x5086d1eEF304eb5284A0f6720f79403b4e9bE294 1min
     IOPMessenger opMessenger;
+    // testnet 0x6BEbC4925716945D46F0Ec336D5C2564F419682C 15min 0gas
     IArbMessenger arbMessenger;
+    // testnet  0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319 15min
     IZKMessenger zkMessenger;
     // testnet: 0xF6BEEeBB578e214CA9E23B0e9683454Ff88Ed2A7 15min
     IPolyMessenger polyMessenger;
+    // testnet: 0xe5E30E7c24e4dFcb281A682562E53154C15D3332
     IScrollMessenger scrollMessenger;
+    // nop
     IStarknetMessenger startnetMessenger;
+    // 0xCF7257A86A5dBba34bAbcd2680f209eb9a05b2d2
     IMetisMessenger metisMessenger;
     
-    constructor(address _opMessenger, address _arbMessenger, address _zkMessenger, address _polyMessenger, address _scrollMessenger) {
-        opMessenger = IOPMessenger(_opMessenger);
-        arbMessenger = IArbMessenger(_arbMessenger);
-        zkMessenger = IZKMessenger(_zkMessenger);
-        polyMessenger = IPolyMessenger(_polyMessenger);
-        scrollMessenger = IScrollMessenger(_scrollMessenger);
+    constructor() {
+        opMessenger = IOPMessenger(0x5086d1eEF304eb5284A0f6720f79403b4e9bE294);
+        arbMessenger = IArbMessenger(0x6BEbC4925716945D46F0Ec336D5C2564F419682C);
+        zkMessenger = IZKMessenger(0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319);
+        polyMessenger = IPolyMessenger(0xF6BEEeBB578e214CA9E23B0e9683454Ff88Ed2A7);
+        scrollMessenger = IScrollMessenger(0xe5E30E7c24e4dFcb281A682562E53154C15D3332);
+        metisMessenger = IMetisMessenger(0xCF7257A86A5dBba34bAbcd2680f209eb9a05b2d2);
     }
 
-    function setL1Contract(address _opMessenger, address _arbMessenger, address _zkMessenger, address _polyMessenger, address _scrollMessenger) external onlyOwner {
+    // for tests
+    function setL1Contract(address _opMessenger, address _arbMessenger, address _zkMessenger, address _polyMessenger,
+                           address _scrollMessenger, address _metisMessenger) external onlyOwner {
         opMessenger = IOPMessenger(_opMessenger);
         arbMessenger = IArbMessenger(_arbMessenger);
         zkMessenger = IZKMessenger(_zkMessenger);
         polyMessenger = IPolyMessenger(_polyMessenger);
         scrollMessenger = IScrollMessenger(_scrollMessenger);
+         metisMessenger = IMetisMessenger(_metisMessenger);
     }
+
     function addL2Contract(uint256 chainId, uint256 L2Contract) external onlyOwner {
         // require(L2Contracts[chainId] == address(0), "already added!");
         L2Contracts[chainId] = L2Contract;
