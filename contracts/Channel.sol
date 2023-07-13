@@ -9,7 +9,7 @@ contract Channel {
         address[2] owners;
         IERC20[2] tokens;
         uint64[2] chainIds; // chainId，让layer1合约可以触发正确的layer2合约
-        uint64[2] minValues; // 最小传入的msg.value, 为了确保消息能够正确调用
+        uint128[2] minValues; // 最小传入的msg.value, 为了确保消息能够正确调用
         uint64 L2LockTime; //  Layer2 锁定时间，在L2LockTime之前，用户可以与Layer2合约进行交互（close）
         uint64 releaseTime; // 释放时间，超过releaseTime没有close的channel可以赎回
         uint64 L1DisputeTime; // 可在L1上进行争议解决的最早时间

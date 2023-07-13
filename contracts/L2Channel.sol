@@ -9,7 +9,7 @@ contract L2Channel is Channel {
         address token;
         uint8 status; // 0: empty 1: open 2: close
     }
-    uint256 chainId;
+    uint256 public chainId;
 
     mapping(uint256 => ChannelInfo) public channels; // 0: empty 1: open 2: close
 

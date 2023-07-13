@@ -3,7 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./L2Channel.sol";
 
-contract OPChannel is L2Channel {
+contract ZKChannel is L2Channel {
     address public L1Contract;
 
     constructor(address _l1) L2Channel(324) {

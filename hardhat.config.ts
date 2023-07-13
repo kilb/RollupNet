@@ -1,59 +1,35 @@
-import { config as dotenvConfig } from "dotenv";
-import { resolve } from "path";
-dotenvConfig({ path: resolve(__dirname, "./.env") });
+import { HardhatUserConfig } from "hardhat/config";
 
-import { HardhatUserConfig } from "hardhat/types";
+import "@matterlabs/hardhat-zksync-deploy";
+import "@matterlabs/hardhat-zksync-solc";
 
-import "@nomiclabs/hardhat-ethers";
-import "@nomiclabs/hardhat-etherscan";
+import "@matterlabs/hardhat-zksync-verify";
 
-
-const chainIds = {
-  hardhat: 31337,
-  localhost: 1337,
+// dynamically changes endpoints for local tests
+const zkSyncTestnet = {
+  url: "https://zksync2-testnet.zksync.dev",
+  ethNetwork: "goerli",
+  zksync: true,
+  // contract verification endpoint
+  verifyURL:
+    "https://zksync2-testnet-explorer.zksync.dev/contract_verification",
 };
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
-const MNEMONIC = "work man father plunge mystery proud hollow address reunion sauce theory bonus";
-
-// You need to export an object to set up your config
-// Go to https://hardhat.org/config/ to learn more
-
 const config: HardhatUserConfig = {
-  defaultNetwork: "localhost",
+  zksolc: {
+    version: "latest",
+    settings: {},
+  },
+  defaultNetwork: "zkSyncTestnet",
   networks: {
-    localhost: {
-      accounts: {
-        mnemonic: MNEMONIC,
-      },
-      chainId: chainIds.localhost,
-      url: "http://127.0.0.1:8545"
+    hardhat: {
+      zksync: false,
     },
+    zkSyncTestnet,
   },
   solidity: {
-    compilers: [
-      {
-        version: '0.8.17',
-        settings: {
-          optimizer: {
-            enabled: true,
-            runs: 200000,
-          },
-          metadata: {
-            // do not include the metadata hash, since this is machine dependent
-            // and we want all generated code to be deterministic
-            // https://docs.soliditylang.org/en/v0.7.6/metadata.html
-            bytecodeHash: 'none',
-          },
-        }
-      },
-    ],
+    version: "0.8.17",
   },
-  // paths: {
-  //   sources: "./contracts",
-  //   cache: "./cache",
-  //   artifacts: "./artifacts"
-  // },
 };
 
 export default config;

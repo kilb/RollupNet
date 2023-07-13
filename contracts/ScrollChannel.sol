@@ -8,7 +8,7 @@ interface IMessenger {
     function xDomainMessageSender() external view returns (address);
 }
 
-contract OPChannel is L2Channel {
+contract ScrollChannel is L2Channel {
     address public L1Contract;
     // testnet: 0xb75d7e84517e1504C151B270255B087Fd746D34C
     IMessenger public ovmL2CrossDomainMessenger;
