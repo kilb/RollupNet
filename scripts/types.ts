@@ -121,26 +121,3 @@ function openHash(meta: MetaData) {
     let h = ethers.utils.keccak256(raw);
     return h;
 }
-
-// let meta: MetaData = {
-//     owners: ["0x0555557997258902185572902627555431450621", "0x0555557997258902185572902627555431450621"],
-//     tokens: ["0x2b4D61D87015a7E04Aca172c146742961c610D3E", "0x2b4D61D87015a7E04Aca172c146742961c610D3E"],
-//     chainIds: [1, 2],
-//     minValues: ["0x1", "0x1"],
-//     L2LockTime: 600,
-//     releaseTime: 7200,
-//     L1DisputeTime: 1200,
-//     L1SettleTime: 3600,
-//     L1LockTime: 5400,
-//     challengeTime: 600,
-//     amountsC1: ['0x56bc75e2d63100000', '0x0'],
-//     amountsC2: ['0x0', '0xad78ebc5ac6200000']
-// };
-
-// let h = openHash(meta);
-
-// let h = meta.openHash();
-// let sig = meta.sign();
-
-// console.log(h);
-
