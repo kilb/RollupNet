@@ -9,12 +9,13 @@ dotenv.config();
 
 // load wallet private key from env file
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
+const l1Contract = "0xEe74e477204A9Cf28bfd235a46A07fba1434D2F4";
 
 if (!PRIVATE_KEY) throw "⛔️ Private key not detected! Add it to the .env file!";
 
 // An example of a deploy script that will deploy and call a simple contract.
 export default async function (hre: HardhatRuntimeEnvironment) {
-  console.log(`Running deploy script for the Greeter contract`);
+  console.log(`Running deploy script for the ZKChannel contract`);
 
   // Initialize the wallet.
   const wallet = new Wallet(PRIVATE_KEY);
@@ -24,7 +25,6 @@ export default async function (hre: HardhatRuntimeEnvironment) {
   const artifact = await deployer.loadArtifact("ZKChannel");
 
   // Estimate contract deployment fee
-  const l1Contract = "0x2b4D61D87015a7E04Aca172c146742961c610D3E";
   const deploymentFee = await deployer.estimateDeployFee(artifact, [l1Contract]);
 
   // ⚠️ OPTIONAL: You can skip this block if your account already has funds in L2

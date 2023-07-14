@@ -1,6 +1,8 @@
 import { Provider } from "zksync-web3";
 import * as ethers from "ethers";
 
+import MetaData from "./types"
+
 // load env file
 import dotenv from "dotenv";
 dotenv.config();
@@ -30,6 +32,20 @@ async function getChannels() {
   // @ts-ignore
   const provider = new Provider("https://zksync2-testnet.zksync.dev");
   const signer = new ethers.Wallet(PRIVATE_KEY, provider);
+
+  const meta = new MetaData(
+    ["0x0555557997258902185572902627555431450621", "0x0555557997258902185572902627555431450621"],
+    ["0x2b4D61D87015a7E04Aca172c146742961c610D3E", "0x2b4D61D87015a7E04Aca172c146742961c610D3E"],
+    [1, 2],
+    ["0x1", "0x1"],
+    600, 7200, 1200, 3600, 5400, 600,
+    ['0x56bc75e2d63100000', '0x0'],
+    ['0x0', '0xad78ebc5ac6200000']
+  );
+  
+  const sig = await meta.sign(signer);
+
+  console.log(sig.v, sig.r, sig.s);
 
   // Initialize contract instance
   const contract = new ethers.Contract(

@@ -45,6 +45,8 @@ contract Channel {
                 )
             )
         );
-        return h;
+        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
+        bytes32 prefixedHashMessage = keccak256(abi.encodePacked(prefix, h));
+        return prefixedHashMessage;
     }
 }
