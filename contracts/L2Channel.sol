@@ -19,13 +19,14 @@ contract L2Channel is Channel {
 
     // channel id有hash计算得到，避免了碰撞，也避免了伪造
     function open(MetaData memory meta, Signature memory sig1, Signature memory sig2) external {       
-        bytes32 h = openHash(meta);
+        bytes32 h = metaHash(meta);
+        bytes32 sigMsg = openSigMsg(h);
         uint256 channelId = uint256(h);
         require(meta.chainIds[0] == chainId || meta.chainIds[1] == chainId, "wrong chainId");
         require(channels[channelId].status == 0, "already exist!");
 
-        require(meta.owners[0] == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
-        require(meta.owners[1] == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
+        require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
+        require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
 
         if (meta.chainIds[0] == chainId) {
             meta.tokens[0].transferFrom(meta.owners[0], address(this), meta.amounts[0][0]);
@@ -42,29 +43,30 @@ contract L2Channel is Channel {
     
     // 主动close，需要在l2lockTime之前完成，防止用户临近releaseTime时提交close造成不一致
     // 如果用户临近l2lockTime提交，可能会造成另一条链无法提交，这时用户可以在L1上提交，因此L2LockTime应小于L1LockTime
-    function close(MetaData memory meta, uint256 amountC1U1, uint256 amountC1U2, uint256 amountC2U1, uint256 amountC2U2, 
+    function close(MetaData memory meta, uint128[4] memory amounts, 
                    Signature memory sig1, Signature memory sig2) external {
-        uint256 channelId = uint256(openHash(meta));
-        bytes32 h = keccak256(abi.encodePacked("close", channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2));
+        bytes32 h = metaHash(meta);
+        uint256 channelId = uint256(h);
+        bytes32 sigMsg = closeSigMsg(h, amounts);
 
-        require(meta.amounts[0][0] + meta.amounts[0][1] == amountC1U1 + amountC1U2 
-                && meta.amounts[1][0] + meta.amounts[1][1] == amountC2U1 + amountC2U2, "wrong amount!");
+        require(meta.amounts[0][0] + meta.amounts[0][1] == amounts[0] + amounts[1] 
+                && meta.amounts[1][0] + meta.amounts[1][1] == amounts[2] + amounts[3], "wrong amount!");
         require(channels[channelId].status == 1, "wrong stage!");
-        require(meta.owners[0] == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
-        require(meta.owners[1] == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
+        require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
+        require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
 
         require(meta.L2LockTime >= block.timestamp, "time is up!");
 
         if(meta.chainIds[0] == chainId) {
-            meta.tokens[0].transfer(meta.owners[0], amountC1U1);
-            meta.tokens[0].transfer(meta.owners[1], amountC1U2);
+            meta.tokens[0].transfer(meta.owners[0], amounts[0]);
+            meta.tokens[0].transfer(meta.owners[1], amounts[1]);
         } else {
-            meta.tokens[1].transfer(meta.owners[0], amountC2U1);
-            meta.tokens[1].transfer(meta.owners[1], amountC2U2);
+            meta.tokens[1].transfer(meta.owners[0], amounts[2]);
+            meta.tokens[1].transfer(meta.owners[1], amounts[3]);
         }
 
         channels[channelId].status = 2;
-        emit ChannelClose(channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2);
+        emit ChannelClose(channelId, amounts[0], amounts[1], amounts[2], amounts[3]);
     }
     
     // 接收L1指令进行操作，因为L1会进行判断，因此在此处不做太多判断
@@ -80,7 +82,7 @@ contract L2Channel is Channel {
     
     // 超时取回，这样做的目的是如果有用户不合作导致一方账户被锁，那么用户可以不用去L1就可以赎回资产，避免了L1 gas fee消耗
     function redeem(MetaData memory meta) external {
-        uint256 channelId = uint256(openHash(meta));
+        uint256 channelId = uint256(metaHash(meta));
         // require(msg.sender == mt.owner1 || msg.sender == mt.owner2, "not allowed!");
         require(channels[channelId].status == 1, "wrong stage!");
         require(meta.L2LockTime < block.timestamp, "not time yet!");

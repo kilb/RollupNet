@@ -25,7 +25,7 @@ contract Channel {
         bytes32 s;
     }
 
-    function openHash(MetaData memory meta) internal pure returns (bytes32) {
+    function metaHash(MetaData memory meta) internal pure returns (bytes32) {
         bytes32 h = keccak256(
             bytes.concat(
                 abi.encodePacked(
@@ -45,6 +45,31 @@ contract Channel {
                 )
             )
         );
+        return h;
+    }
+
+    function openSigMsg(bytes32 _metaHash) internal pure returns (bytes32) {
+        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
+        bytes32 prefixedHashMessage = keccak256(abi.encodePacked(prefix, _metaHash));
+        return prefixedHashMessage;
+    }
+
+    function updateSigMsg(
+        bytes32 _metaHash,
+        uint32 version,
+        uint128[4] memory amounts
+    ) internal pure returns (bytes32) {
+        bytes32 h = keccak256(abi.encodePacked("update", version, _metaHash, amounts));
+        bytes memory prefix = "\x19Ethereum Signed Message:\n32";
+        bytes32 prefixedHashMessage = keccak256(abi.encodePacked(prefix, h));
+        return prefixedHashMessage;
+    }
+
+    function closeSigMsg(
+        bytes32 _metaHash,
+        uint128[4] memory amounts
+    ) internal pure returns (bytes32) {
+        bytes32 h = keccak256(abi.encodePacked("close", _metaHash, amounts));
         bytes memory prefix = "\x19Ethereum Signed Message:\n32";
         bytes32 prefixedHashMessage = keccak256(abi.encodePacked(prefix, h));
         return prefixedHashMessage;

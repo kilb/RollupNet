@@ -11,8 +11,7 @@ export default class MetaData {
     L1SettleTime: number;
     L1LockTime: number;
     challengeTime: number;
-    amountsC1: string[];
-    amountsC2: string[];
+    amounts: string[][];;
 
     constructor(
         owners: string[],
@@ -38,8 +37,9 @@ export default class MetaData {
         this.L1SettleTime = L1SettleTime;
         this.L1LockTime = L1LockTime;
         this.challengeTime = challengeTime;
-        this.amountsC1 = amountsC1;
-        this.amountsC2 = amountsC2;
+        this.amounts = [];
+        this.amounts[0] = amountsC1;
+        this.amounts[1] = amountsC2;
     }
 
     openHash() {
@@ -65,8 +65,8 @@ export default class MetaData {
                 this.tokens,
                 this.chainIds,
                 this.minValues,
-                this.amountsC1,
-                this.amountsC2,
+                this.amounts[0],
+                this.amounts[1],
                 this.L1DisputeTime,
                 this.L1SettleTime,
                 this.L1LockTime,
@@ -109,8 +109,8 @@ function openHash(meta: MetaData) {
             meta.tokens,
             meta.chainIds,
             meta.minValues,
-            meta.amountsC1,
-            meta.amountsC2,
+            meta.amounts[0],
+            meta.amounts[1],
             meta.L1DisputeTime,
             meta.L1SettleTime,
             meta.L1LockTime,

@@ -77,11 +77,12 @@ contract L1Manager is Ownable, Channel {
     
     //claim时间也要<L1SetttleTime, 因此发起者应该把claim时间考虑在内
     function forceRedeem(MetaData memory meta, Signature memory sig1, Signature memory sig2) external {
-        bytes32 h = openHash(meta);
+        bytes32 h = metaHash(meta);
+        bytes32 sigMsg = openSigMsg(h);
         uint256 channelId = uint256(h);
 
-        require(meta.owners[0] == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
-        require(meta.owners[1] == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
+        require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
+        require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
         require(meta.L1SettleTime >= block.timestamp + meta.challengeTime, "time is up!");
         require(meta.L1DisputeTime <= block.timestamp, "not time yet!");
         if (tasks[channelId].version == 0 && tasks[channelId].status == 0) {
@@ -93,11 +94,12 @@ contract L1Manager is Ownable, Channel {
 
     function agreeRedeem(uint256 value1, MetaData memory meta, Signature memory sig1, Signature memory sig2) external payable {
         require(msg.value > value1, "msg.value is too small");
-        bytes32 h = openHash(meta);
+        bytes32 h = metaHash(meta);
+        bytes32 sigMsg = openSigMsg(h);
         uint256 channelId = uint256(h);
 
-        require(meta.owners[0] == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
-        require(meta.owners[1] == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
+        require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
+        require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
         require(tasks[channelId].expire >= block.timestamp, "time is up!");
         require(tasks[channelId].version == 1 && tasks[channelId].status == 0, "wrong stage!");
         require((msg.sender == meta.owners[0] && tasks[channelId].caller == meta.owners[1]) 
@@ -109,52 +111,54 @@ contract L1Manager is Ownable, Channel {
         sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
         emit AgreeRedeem(channelId);
     }
-
-    function forceClose(uint256 value1, MetaData memory meta, uint256 amountC1U1, uint256 amountC1U2, uint256 amountC2U1, 
-                        uint256 amountC2U2, Signature memory sig1, Signature memory sig2) external payable {
+    
+    // amouts[0] C1U1, amounts[1] C1U2, amounts[2] C2U1, amounts[3] C2U2
+    function forceClose(uint256 value1, MetaData memory meta, uint128[4] memory amounts, Signature memory sig1, Signature memory sig2) external payable {
         require(msg.value > value1, "msg.value is too small");
-        uint256 channelId = uint256(openHash(meta));
-
-        bytes32 h = keccak256(abi.encodePacked("close", channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2));
-        require(meta.owners[0] == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
-        require(meta.owners[1] == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
+        bytes32 h = metaHash(meta);
+        uint256 channelId = uint256(h);
+        bytes32 sigMsg = closeSigMsg(h, amounts);
+        
+        require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
+        require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
         require(meta.L1SettleTime >= block.timestamp, "time is up!");
-        require(meta.amounts[0][0] + meta.amounts[0][1] == amountC1U1 + amountC1U2, "wrong C1 amount!");
-        require(meta.amounts[1][0] + meta.amounts[1][1] == amountC2U1 + amountC2U2, "wrong C2 amount!");
+        require(meta.amounts[0][0] + meta.amounts[0][1] == amounts[0] + amounts[1], "wrong C1 amount!");
+        require(meta.amounts[1][0] + meta.amounts[1][1] == amounts[2] + amounts[3], "wrong C2 amount!");
         // require(meta.L1DisputeTime <= block.timestamp, "not time yet!"); 无需该检查，因为L2上只能用Close提前退出
         if (tasks[channelId].status == 0) {
-            tasks[channelId] = Task(msg.sender, 0xffffffff, uint48(block.timestamp), 1, 
-                               uint128(amountC1U1), uint128(amountC1U2), uint128(amountC2U1), uint128(amountC2U2));
+            tasks[channelId] = Task(msg.sender, 0xffffffff, uint48(block.timestamp), 1,
+                                    amounts[0], amounts[1], amounts[2], amounts[3]);
             tasks[channelId].status = 1;
             //L1 to L2 message
             sendL2Message(value1, meta.chainIds[0], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
             sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
 
-            emit ForceClose(channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2);
+            emit ForceClose(channelId, amounts[0], amounts[1], amounts[2], amounts[3]);
         }
     }
     
     // challenge 不改变task过期时间，因为不需要来回反复挑战
-    function challenge(uint256 value1, MetaData memory meta, uint256 version, uint256 amountC1U1, uint256 amountC1U2, 
-                       uint256 amountC2U1, uint256 amountC2U2, Signature memory sig1, Signature memory sig2) external payable {
+    function challenge(uint256 value1, MetaData memory meta, uint32 version, uint128[4] memory amounts,
+                       Signature memory sig1, Signature memory sig2) external payable {
         require(msg.value > value1, "msg.value is too small");
-        uint256 channelId = uint256(openHash(meta));
-        bytes32 h = keccak256(abi.encodePacked("update", version, channelId, amountC1U1, amountC1U2, amountC2U1, amountC2U2));
-        require(meta.owners[0] == ecrecover(h, sig1.v, sig1.r, sig1.s), "wrong signature1!");
-        require(meta.owners[1] == ecrecover(h, sig2.v, sig2.r, sig2.s), "wrong signature2!");
+        bytes32 h = metaHash(meta);
+        uint256 channelId = uint256(h);
+        bytes32 sigMsg = updateSigMsg(h, version, amounts);
+        require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
+        require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
 
         require(tasks[channelId].status == 0 && tasks[channelId].version > 0, "wrong stage!");
         require(tasks[channelId].expire >= block.timestamp, "time is up!");
 
-        require(meta.amounts[0][0] + meta.amounts[0][1] == amountC1U1 + amountC1U2, "wrong C1 amount!");
-        require(meta.amounts[1][0] + meta.amounts[1][1] == amountC2U1 + amountC2U2, "wrong C2 amount!");
+        require(meta.amounts[0][0] + meta.amounts[0][1] == amounts[0] + amounts[1], "wrong C1 amount!");
+        require(meta.amounts[1][0] + meta.amounts[1][1] == amounts[2] + amounts[3], "wrong C2 amount!");
 
         if (version > tasks[channelId].version) {
             tasks[channelId].version = uint32(version);
-            tasks[channelId].amountC1U1 = uint128(amountC1U1);
-            tasks[channelId].amountC1U2 = uint128(amountC1U2);
-            tasks[channelId].amountC2U1 = uint128(amountC2U1);
-            tasks[channelId].amountC2U2 = uint128(amountC2U2);
+            tasks[channelId].amountC1U1 = amounts[0];
+            tasks[channelId].amountC1U2 = amounts[1];
+            tasks[channelId].amountC2U1 = amounts[2];
+            tasks[channelId].amountC2U2 = amounts[3];
         }
 
         if ((msg.sender == meta.owners[0] && tasks[channelId].caller == meta.owners[1]) 
@@ -165,7 +169,7 @@ contract L1Manager is Ownable, Channel {
             sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
         }
 
-        emit Challenge(channelId, tasks[channelId].status, amountC1U1, amountC1U2, amountC2U1, amountC2U2);
+        emit Challenge(channelId, tasks[channelId].status, amounts[0], amounts[1], amounts[2], amounts[3]);
     }
 
     // 如果时间到期了未挑战，则需claim
@@ -173,7 +177,7 @@ contract L1Manager is Ownable, Channel {
     function claim(uint256 value1, MetaData memory meta) external payable {
         require(msg.value > value1, "msg.value is too small");
 
-        uint256 channelId = uint256(openHash(meta));
+        uint256 channelId = uint256(metaHash(meta));
         // require(tasks[channelId].version == 1 && tasks[channelId].status == 0, "wrong stage!");
         require(tasks[channelId].expire < block.timestamp || tasks[channelId].status == 1, "not time!");
         require(block.timestamp < meta.L1LockTime, "time is up");
