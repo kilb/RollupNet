@@ -87,7 +87,7 @@ contract L1Manager is Ownable, Channel {
         require(meta.L1DisputeTime <= block.timestamp, "not time yet!");
         if (tasks[channelId].version == 0 && tasks[channelId].status == 0) {
             tasks[channelId] = Task(msg.sender, 1, uint48(block.timestamp + meta.challengeTime), 0, 
-                               meta.amounts[0][0], meta.amounts[0][1], meta.amounts[1][0], meta.amounts[1][1]);
+                               meta.amounts[0], meta.amounts[1], meta.amounts[2], meta.amounts[3]);
         }
         emit ForceRedeem(channelId, meta);
     }
@@ -122,8 +122,8 @@ contract L1Manager is Ownable, Channel {
         require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
         require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
         require(meta.L1SettleTime >= block.timestamp, "time is up!");
-        require(meta.amounts[0][0] + meta.amounts[0][1] == amounts[0] + amounts[1], "wrong C1 amount!");
-        require(meta.amounts[1][0] + meta.amounts[1][1] == amounts[2] + amounts[3], "wrong C2 amount!");
+        require(meta.amounts[0] + meta.amounts[1] == amounts[0] + amounts[1], "wrong C1 amount!");
+        require(meta.amounts[2] + meta.amounts[3] == amounts[2] + amounts[3], "wrong C2 amount!");
         // require(meta.L1DisputeTime <= block.timestamp, "not time yet!"); 无需该检查，因为L2上只能用Close提前退出
         if (tasks[channelId].status == 0) {
             tasks[channelId] = Task(msg.sender, 0xffffffff, uint48(block.timestamp), 1,
@@ -150,8 +150,8 @@ contract L1Manager is Ownable, Channel {
         require(tasks[channelId].status == 0 && tasks[channelId].version > 0, "wrong stage!");
         require(tasks[channelId].expire >= block.timestamp, "time is up!");
 
-        require(meta.amounts[0][0] + meta.amounts[0][1] == amounts[0] + amounts[1], "wrong C1 amount!");
-        require(meta.amounts[1][0] + meta.amounts[1][1] == amounts[2] + amounts[3], "wrong C2 amount!");
+        require(meta.amounts[0] + meta.amounts[1] == amounts[0] + amounts[1], "wrong C1 amount!");
+        require(meta.amounts[2] + meta.amounts[3] == amounts[2] + amounts[3], "wrong C2 amount!");
 
         if (version > tasks[channelId].version) {
             tasks[channelId].version = uint32(version);

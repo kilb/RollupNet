@@ -8,7 +8,7 @@ const contractName = process.env.CONTRACT || "";
 async function main() {
   const manager = await ethers.getContractFactory(contractName);
 
-  const contract = await manager.deploy("0xEe74e477204A9Cf28bfd235a46A07fba1434D2F4");
+  const contract = await manager.deploy("0x7F4f165EE1aAe7de36724244238471C13f1B9141");
 
   console.log(
     `Contract ${contractName} was deployed to ${contract.address}`

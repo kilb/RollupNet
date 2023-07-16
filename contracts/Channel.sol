@@ -16,7 +16,7 @@ contract Channel {
         uint64 L1SettleTime; // 在L1上争议出结果的最晚时间，即过了该时间后只能重新执行已有的结果
         uint64 L1LockTime; // 可在L1上进行争议解决的最晚时间
         uint64 challengeTime; // L1上用户响应挑战的时间
-        uint128[2][2] amounts; // 用户金额
+        uint128[4] amounts; // 用户金额
     }
 
     struct Signature {

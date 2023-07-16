@@ -11,7 +11,7 @@ export default class MetaData {
     L1SettleTime: number;
     L1LockTime: number;
     challengeTime: number;
-    amounts: string[][];;
+    amounts: string[];
 
     constructor(
         owners: string[],
@@ -24,8 +24,7 @@ export default class MetaData {
         L1SettleTime: number,
         L1LockTime: number,
         challengeTime: number,
-        amountsC1: string[],
-        amountsC2: string[]
+        amounts: string[],
     ) {
         this.owners = owners;
         this.tokens = tokens;
@@ -37,12 +36,10 @@ export default class MetaData {
         this.L1SettleTime = L1SettleTime;
         this.L1LockTime = L1LockTime;
         this.challengeTime = challengeTime;
-        this.amounts = [];
-        this.amounts[0] = amountsC1;
-        this.amounts[1] = amountsC2;
+        this.amounts = amounts;
     }
 
-    openHash() {
+    metaHash() {
         let raw = ethers.utils.solidityPack(
             [
                 "string",
@@ -50,8 +47,7 @@ export default class MetaData {
                 "address[2]",
                 "uint64[2]",
                 "uint64[2]",
-                "uint128[2]",
-                "uint128[2]",
+                "uint128[4]",
                 "uint64",
                 "uint64",
                 "uint64",
@@ -65,8 +61,7 @@ export default class MetaData {
                 this.tokens,
                 this.chainIds,
                 this.minValues,
-                this.amounts[0],
-                this.amounts[1],
+                this.amounts,
                 this.L1DisputeTime,
                 this.L1SettleTime,
                 this.L1LockTime,
@@ -78,9 +73,52 @@ export default class MetaData {
         return h;
     }
 
-    async sign(wallet: ethers.Wallet): Promise<ethers.Signature> {
-        let h = this.openHash();
-        let messageHashBytes = ethers.utils.arrayify(h)
+    async signOpen(wallet: ethers.Wallet): Promise<ethers.Signature> {
+        let h = this.metaHash();
+        let messageHashBytes = ethers.utils.arrayify(h);
+        let flatSig = await wallet.signMessage(messageHashBytes);
+        return ethers.utils.splitSignature(flatSig);
+    }
+
+    async signUpdte(
+        wallet: ethers.Wallet,
+        version: number,
+        amounts: string[]
+    ): Promise<ethers.Signature> {
+        let h = this.metaHash();
+        let raw = ethers.utils.solidityPack([
+            "string",
+            "uint32",
+            "bytes32",
+            "uint128[4]"
+        ],
+        [
+            "update",
+            version,
+            h,
+            amounts
+        ]);
+        let messageHashBytes = ethers.utils.arrayify(raw);
+        let flatSig = await wallet.signMessage(messageHashBytes);
+        return ethers.utils.splitSignature(flatSig);
+    }
+
+    async signClose(
+        wallet: ethers.Wallet,
+        amounts: string[]
+    ): Promise<ethers.Signature> {
+        let h = this.metaHash();
+        let raw = ethers.utils.solidityPack([
+            "string",
+            "bytes32",
+            "uint128[4]"
+        ],
+        [
+            "close",
+            h,
+            amounts
+        ]);
+        let messageHashBytes = ethers.utils.arrayify(raw);
         let flatSig = await wallet.signMessage(messageHashBytes);
         return ethers.utils.splitSignature(flatSig);
     }

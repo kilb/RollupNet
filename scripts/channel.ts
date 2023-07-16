@@ -6,9 +6,10 @@ import MetaData from "./types";
 import * as L2ChannelArtifact from "../artifacts/contracts/OPChannel.sol/OPChannel.json";
 import * as ERC20Artifact from "../artifacts/contracts/TestToken.sol/ABCToken.json";
 
-const L2_CHANNEL_ADDRESS = "0xcAB07BDA4BB67f03236C99768bC67ad4cBaA7a89";
+const L1_MANAGER_ADDRESS = "0x7F4f165EE1aAe7de36724244238471C13f1B9141";
+const L2_CHANNEL_ADDRESS = "0xBaB906E8B0A77411348FacAD2AdCD589c8Fb370F";
 const TEST_TOKEN_ADDRESS = "0x88a5035499978534d0aD672CE717d2009f9B4E66";
-const L2_CHANNEL_ADDRESS_ZK = "0xac3089F99dfb8D3B520Bb52F5674Dc28d0928ae1";
+const L2_CHANNEL_ADDRESS_ZK = "0x09cCd00a8b2C5B02B931B6099eaA5cA42FE5B62D";
 const TEST_TOKEN_ADDRESS_ZK = "0x627dD03F977Df2eA5B60bA49210D9de45D351f49";
 
 function prepareMetaWithDefaultSetting(

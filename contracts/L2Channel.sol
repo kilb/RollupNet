@@ -29,12 +29,12 @@ contract L2Channel is Channel {
         require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
 
         if (meta.chainIds[0] == chainId) {
-            meta.tokens[0].transferFrom(meta.owners[0], address(this), meta.amounts[0][0]);
-            meta.tokens[0].transferFrom(meta.owners[1], address(this), meta.amounts[0][1]);
+            meta.tokens[0].transferFrom(meta.owners[0], address(this), meta.amounts[0]);
+            meta.tokens[0].transferFrom(meta.owners[1], address(this), meta.amounts[1]);
             channels[channelId] = ChannelInfo(address(meta.tokens[0]), 1);
         } else {
-            meta.tokens[1].transferFrom(meta.owners[0], address(this), meta.amounts[1][0]);
-            meta.tokens[1].transferFrom(meta.owners[1], address(this), meta.amounts[1][1]);
+            meta.tokens[1].transferFrom(meta.owners[0], address(this), meta.amounts[2]);
+            meta.tokens[1].transferFrom(meta.owners[1], address(this), meta.amounts[3]);
             channels[channelId] = ChannelInfo(address(meta.tokens[1]), 1);
         }
         
@@ -49,8 +49,8 @@ contract L2Channel is Channel {
         uint256 channelId = uint256(h);
         bytes32 sigMsg = closeSigMsg(h, amounts);
 
-        require(meta.amounts[0][0] + meta.amounts[0][1] == amounts[0] + amounts[1] 
-                && meta.amounts[1][0] + meta.amounts[1][1] == amounts[2] + amounts[3], "wrong amount!");
+        require(meta.amounts[0] + meta.amounts[1] == amounts[0] + amounts[1] 
+                && meta.amounts[2] + meta.amounts[3] == amounts[2] + amounts[3], "wrong amount!");
         require(channels[channelId].status == 1, "wrong stage!");
         require(meta.owners[0] == ecrecover(sigMsg, sig1.v, sig1.r, sig1.s), "wrong signature1!");
         require(meta.owners[1] == ecrecover(sigMsg, sig2.v, sig2.r, sig2.s), "wrong signature2!");
@@ -88,11 +88,11 @@ contract L2Channel is Channel {
         require(meta.L2LockTime < block.timestamp, "not time yet!");
 
         if (meta.chainIds[0] == chainId) {         
-            meta.tokens[0].transfer(meta.owners[0], meta.amounts[0][0]);
-            meta.tokens[0].transfer(meta.owners[1], meta.amounts[0][1]);
+            meta.tokens[0].transfer(meta.owners[0], meta.amounts[0]);
+            meta.tokens[0].transfer(meta.owners[1], meta.amounts[1]);
         } else {
-            meta.tokens[1].transfer(meta.owners[0], meta.amounts[1][0]);
-            meta.tokens[1].transfer(meta.owners[1], meta.amounts[1][1]);
+            meta.tokens[1].transfer(meta.owners[0], meta.amounts[2]);
+            meta.tokens[1].transfer(meta.owners[1], meta.amounts[3]);
         }
 
         channels[channelId].status == 2;
@@ -102,7 +102,4 @@ contract L2Channel is Channel {
     event ChannelOpen(uint256 indexed channelId, MetaData meta);
     event ChannelClose(uint256 indexed channelId, uint256 amountC1U1, uint256 amountC1U2, uint256 amountC2U1, uint256 amountC2U2);
     event ChannelRedeem(uint256 indexed channelId);
-
 }
-
-
