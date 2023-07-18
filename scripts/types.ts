@@ -98,7 +98,8 @@ export default class MetaData {
             h,
             amounts
         ]);
-        let messageHashBytes = ethers.utils.arrayify(raw);
+        let sigMsg = ethers.utils.keccak256(raw);
+        let messageHashBytes = ethers.utils.arrayify(sigMsg);
         let flatSig = await wallet.signMessage(messageHashBytes);
         return ethers.utils.splitSignature(flatSig);
     }
@@ -118,7 +119,8 @@ export default class MetaData {
             h,
             amounts
         ]);
-        let messageHashBytes = ethers.utils.arrayify(raw);
+        let sigMsg = ethers.utils.keccak256(raw);
+        let messageHashBytes = ethers.utils.arrayify(sigMsg);
         let flatSig = await wallet.signMessage(messageHashBytes);
         return ethers.utils.splitSignature(flatSig);
     }

@@ -12,6 +12,7 @@ export const zkSyncTestnet = {
   accounts: [PRIVATE_KEY, OP1_PRIVATE_KEY, OP2_PRIVATE_KEY],
   url: "https://zksync2-testnet.zksync.dev",
   ethNetwork: "goerli",
+  chainId: 280,
   zksync: true,
   // contract verification endpoint
   verifyURL:

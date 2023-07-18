@@ -4,6 +4,7 @@ pragma solidity ^0.8.9;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "./Channel.sol";
 import "./IMessenger.sol";
+import "./zkSyncConfig.sol";
 
 // TODO: 如果用户用V(n-1)发起了L1挑战，则另一个用户可以在临近挑战期结束时在L2上发起Vn的close交易（或抢占L1->L2交易），这时应该怎么办？
 // 用户仅能在L2LockTime之后发起挑战，如果用户能在L2LockTime之前发起挑战，就会存在这样的问题
@@ -18,6 +19,10 @@ import "./IMessenger.sol";
 // 想象一种场景，用户在临近结束时提交close，但是可以让一个L2失败，这样可能会造成不一致
 // 解决办法：留出一个时间，在这段时间内可以再次提交，比如其他用户再次提交
 // 或者把最小msg.valuex写在metadata里
+
+// 如果消息转发失败了咋办？节点不转发消息
+// 可以证明节点没有转发消息：在L2上声明收不到消息，对手可以去L1上给L2发消息，如果真收不到，则进入异常处理：
+// 异常处理：1）增加锁定时间直至消息服务恢复，2）是否可以解锁资产？
 
 contract L1Manager is Ownable, Channel {
     struct Task {
@@ -47,7 +52,7 @@ contract L1Manager is Ownable, Channel {
     IScrollMessenger scrollMessenger;
     // nop
     IStarknetMessenger startnetMessenger;
-    // 0xCF7257A86A5dBba34bAbcd2680f209eb9a05b2d2
+    // 0x914Aed79Cd083B5043C75A90616CC2A0477bf86c
     IMetisMessenger metisMessenger;
     
     constructor() {
@@ -56,7 +61,7 @@ contract L1Manager is Ownable, Channel {
         zkMessenger = IZKMessenger(0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319);
         polyMessenger = IPolyMessenger(0xF6BEEeBB578e214CA9E23B0e9683454Ff88Ed2A7);
         scrollMessenger = IScrollMessenger(0xe5E30E7c24e4dFcb281A682562E53154C15D3332);
-        metisMessenger = IMetisMessenger(0xCF7257A86A5dBba34bAbcd2680f209eb9a05b2d2);
+        metisMessenger = IMetisMessenger(0x914Aed79Cd083B5043C75A90616CC2A0477bf86c);
     }
 
     // for tests
@@ -92,6 +97,7 @@ contract L1Manager is Ownable, Channel {
         emit ForceRedeem(channelId, meta);
     }
 
+    //不需要验签
     function agreeRedeem(uint256 value1, MetaData memory meta, Signature memory sig1, Signature memory sig2) external payable {
         require(msg.value > value1, "msg.value is too small");
         bytes32 h = metaHash(meta);
@@ -203,7 +209,8 @@ contract L1Manager is Ownable, Channel {
         
         emit L2MesseageSend(chainId, channelId, owner1, owner2, amount1, amount2);
     }
-
+    
+    // 0 gas fee
     function OPL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
         opMessenger.sendMessage{value: value}(
             address(uint160(L2Contracts[10])),
@@ -218,16 +225,17 @@ contract L1Manager is Ownable, Channel {
             uint32(gasLimit) // use whatever gas limit you want
         );
     }
-
+    
+    // submit cost + gasPrice * gasLimit <= msg.value
     function ARBL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
         arbMessenger.createRetryableTicket{value: value}(
             address(uint160(L2Contracts[42161])),
-            msg.value,
-            msg.value,
+            0,
+            value / 2,
             tx.origin,
             tx.origin,
             gasLimit,
-            msg.value / gasLimit - 10,
+            (value / 2) / gasLimit - 10,
             abi.encodeWithSignature(
                 "forceClose(uint256,address,address,uint256,uint256)",
                 channelId,
@@ -238,7 +246,8 @@ contract L1Manager is Ownable, Channel {
             )
         );
     }
-
+    
+    // msg.value > L2Gasprice * gasLimit, L2Gasprice 由消息合约计算得到
     function ZKL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
         zkMessenger.requestL2Transaction{value: value}(
             address(uint160(L2Contracts[324])),
@@ -252,7 +261,7 @@ contract L1Manager is Ownable, Channel {
                 amount2
             ),
             gasLimit,
-            msg.value / gasLimit - 10,
+            REQUIRED_L2_GAS_PRICE_PER_PUBDATA,
             new bytes[](0),
             tx.origin
         );
