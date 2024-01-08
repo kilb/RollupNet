@@ -17,7 +17,7 @@ contract L2Channel is Channel {
         chainId = _id;
     }
 
-    // channel id有hash计算得到，避免了碰撞，也避免了伪造
+    // channel id由hash计算得到，避免了碰撞，也避免了伪造
     function open(MetaData memory meta, Signature memory sig1, Signature memory sig2) external {       
         bytes32 h = metaHash(meta);
         bytes32 sigMsg = openSigMsg(h);

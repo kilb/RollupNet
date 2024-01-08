@@ -1,5 +1,5 @@
 import { HardhatUserConfig } from "hardhat/config";
-import { zkSyncTestnet, Arbitrum, Scroll, zkEVM, Metis, Optimism, Goerli} from "./networks.config";
+import { zkSyncTestnet, Arbitrum, Scroll, zkEVM, Metis, Optimism, Goerli, Mantle} from "./networks.config";
 
 import "@matterlabs/hardhat-zksync-deploy";
 import "@matterlabs/hardhat-zksync-solc";
@@ -31,6 +31,7 @@ const config: HardhatUserConfig = {
     zkEVM,
     Metis,
     Scroll,
+    Mantle
   },
   solidity: {
     version: "0.8.17",

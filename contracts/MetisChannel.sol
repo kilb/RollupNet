@@ -26,7 +26,7 @@ contract MetisChannel is L2Channel {
         _;
     }
 
-     function forceClose(uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) external onlyL1Contract {
+     function forceClose(uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) external payable onlyL1Contract {
         _forceClose(channelId, owner1, owner2, amount1, amount2);
     }
 }

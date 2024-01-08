@@ -60,3 +60,10 @@ export const Scroll = {
   url: "https://alpha-rpc.scroll.io/l2",
   zksync: false,
 };
+
+export const Mantle = {
+  accounts: [PRIVATE_KEY, OP1_PRIVATE_KEY, OP2_PRIVATE_KEY],
+  chainId: 5001,
+  url: "https://rpc.testnet.mantle.xyz",
+  zksync: false,
+};

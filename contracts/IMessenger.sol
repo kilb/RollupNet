@@ -30,6 +30,31 @@ interface IMetisMessenger {
     ) external payable;
 }
 
+
+interface IMantleMessenger {
+    /*************
+     * Variables *
+     *************/
+
+    function xDomainMessageSender() external view returns (address);
+
+    /********************
+     * Public Functions *
+     ********************/
+    
+    /**
+     * Sends a cross domain message to the target messenger.
+     * @param _target Target contract address.
+     * @param _message Message to send to the target.
+     * @param _gasLimit Gas limit for the provided message.
+     */
+    function sendMessage(
+        address _target,
+        bytes calldata _message,
+        uint32 _gasLimit
+    ) external payable;
+}
+
 interface IArbMessenger {
      function sendL2Message(bytes calldata messageData) external returns (uint256);
      // `l1CallValue (also referred to as deposit)`: Not a real function parameter, it is rather the callValue that is sent along with the transaction

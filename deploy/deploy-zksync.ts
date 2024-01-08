@@ -7,7 +7,7 @@ import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
 import dotenv from "dotenv";
 dotenv.config();
 
-const l1Contract = "0x7F4f165EE1aAe7de36724244238471C13f1B9141";
+const l1Contract = "0x88736e6d0Cb9C016A916e0D5827dCBD6BAF1c192";
 
 // load wallet private key from env file
 const PRIVATE_KEY = process.env.PRIVATE_KEY || "";

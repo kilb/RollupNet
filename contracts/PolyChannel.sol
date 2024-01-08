@@ -3,6 +3,7 @@ pragma solidity ^0.8.9;
 
 import "./L2Channel.sol";
 
+// https://github.com/0xPolygonHermez/code-examples/blob/main/zkevm-nft-bridge-example/deployment/deployNFTBridge.js
 contract PolyChannel is L2Channel {
     address public L1Contract;
     // testnet: 0xF6BEEeBB578e214CA9E23B0e9683454Ff88Ed2A7

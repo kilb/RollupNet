@@ -46,22 +46,27 @@ contract L1Manager is Ownable, Channel {
     IArbMessenger arbMessenger;
     // testnet  0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319 15min
     IZKMessenger zkMessenger;
+    // mainnet: 0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe
     // testnet: 0xF6BEEeBB578e214CA9E23B0e9683454Ff88Ed2A7 15min
     IPolyMessenger polyMessenger;
     // testnet: 0xe5E30E7c24e4dFcb281A682562E53154C15D3332
+    // https://guide.scroll.io/developer-guides/greeting-contract-with-cross-chain-interaction
     IScrollMessenger scrollMessenger;
     // nop
     IStarknetMessenger startnetMessenger;
     // 0x914Aed79Cd083B5043C75A90616CC2A0477bf86c
     IMetisMessenger metisMessenger;
+    // testnet: 0x7Bfe603647d5380ED3909F6f87580D0Af1B228B4
+    IMantleMessenger mantleMessenger;
     
     constructor() {
         opMessenger = IOPMessenger(0x5086d1eEF304eb5284A0f6720f79403b4e9bE294);
         arbMessenger = IArbMessenger(0x6BEbC4925716945D46F0Ec336D5C2564F419682C);
         zkMessenger = IZKMessenger(0x1908e2BF4a88F91E4eF0DC72f02b8Ea36BEa2319);
         polyMessenger = IPolyMessenger(0xF6BEEeBB578e214CA9E23B0e9683454Ff88Ed2A7);
-        scrollMessenger = IScrollMessenger(0xe5E30E7c24e4dFcb281A682562E53154C15D3332);
+        scrollMessenger = IScrollMessenger(0x5260e38080BFe97e6C4925d9209eCc5f964373b6);
         metisMessenger = IMetisMessenger(0x914Aed79Cd083B5043C75A90616CC2A0477bf86c);
+        mantleMessenger = IMantleMessenger(0x7Bfe603647d5380ED3909F6f87580D0Af1B228B4);
     }
 
     // for tests
@@ -72,7 +77,7 @@ contract L1Manager is Ownable, Channel {
         zkMessenger = IZKMessenger(_zkMessenger);
         polyMessenger = IPolyMessenger(_polyMessenger);
         scrollMessenger = IScrollMessenger(_scrollMessenger);
-         metisMessenger = IMetisMessenger(_metisMessenger);
+        metisMessenger = IMetisMessenger(_metisMessenger);
     }
 
     function addL2Contract(uint256 chainId, uint256 L2Contract) external onlyOwner {
@@ -113,8 +118,8 @@ contract L1Manager is Ownable, Channel {
 
         tasks[channelId].status = 1;
         //L1 to L2 message
-        sendL2Message(value1, meta.chainIds[0], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
-        sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
+        sendL2Message(value1, meta.chainIds[0], channelId, meta.owners, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
+        sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
         emit AgreeRedeem(channelId);
     }
     
@@ -136,8 +141,8 @@ contract L1Manager is Ownable, Channel {
                                     amounts[0], amounts[1], amounts[2], amounts[3]);
             tasks[channelId].status = 1;
             //L1 to L2 message
-            sendL2Message(value1, meta.chainIds[0], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
-            sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
+            sendL2Message(value1, meta.chainIds[0], channelId, meta.owners, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
+            sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
 
             emit ForceClose(channelId, amounts[0], amounts[1], amounts[2], amounts[3]);
         }
@@ -171,8 +176,8 @@ contract L1Manager is Ownable, Channel {
            ||(msg.sender == meta.owners[1] && tasks[channelId].caller == meta.owners[0])) {
             tasks[channelId].status = 1;
             //L1 to L2 message
-            sendL2Message(value1, meta.chainIds[0], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
-            sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
+            sendL2Message(value1, meta.chainIds[0], channelId, meta.owners, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
+            sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
         }
 
         emit Challenge(channelId, tasks[channelId].status, amounts[0], amounts[1], amounts[2], amounts[3]);
@@ -189,36 +194,54 @@ contract L1Manager is Ownable, Channel {
         require(block.timestamp < meta.L1LockTime, "time is up");
         tasks[channelId].status = 1;
         //L1 to L2 message
-        sendL2Message(value1, meta.chainIds[0], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
-        sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners[0], meta.owners[1], tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
+        sendL2Message(value1, meta.chainIds[0], channelId, meta.owners, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2);
+        sendL2Message(msg.value - value1, meta.chainIds[1], channelId, meta.owners, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
         emit Claim(channelId, tasks[channelId].amountC1U1, tasks[channelId].amountC1U2, tasks[channelId].amountC2U1, tasks[channelId].amountC2U2);
     }
 
-    function sendL2Message(uint256 value, uint256 chainId, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
+    function sendL2Message(uint256 value, uint256 chainId, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
         if (chainId == 10) {
-            OPL2Message(value, channelId, owner1, owner2, amount1, amount2);
+            OPL2Message(value, channelId, owners, amount1, amount2);
         } else if (chainId == 42161) {
-            ARBL2Message(value, channelId, owner1, owner2, amount1, amount2);
+            ARBL2Message(value, channelId, owners, amount1, amount2);
         } else if (chainId == 324) {
-            ZKL2Message(value, channelId, owner1, owner2, amount1, amount2);
+            ZKL2Message(value, channelId, owners, amount1, amount2);
         } else if (chainId == 1101) {
-            PolyL2Message(value, channelId, owner1, owner2, amount1, amount2);
+            PolyL2Message(value, channelId, owners, amount1, amount2);
         } else if (chainId == 534352) {
-            ScrollL2Message(value, channelId, owner1, owner2, amount1, amount2);
+            ScrollL2Message(value, channelId, owners, amount1, amount2);
+        } else if (chainId == 5000) {
+            MantleL2Message(value, channelId, owners, amount1, amount2);
         }
         
-        emit L2MesseageSend(chainId, channelId, owner1, owner2, amount1, amount2);
+        emit L2MesseageSend(chainId, channelId, owners[0], owners[1], amount1, amount2);
     }
     
     // 0 gas fee
-    function OPL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
+    function OPL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
         opMessenger.sendMessage{value: value}(
             address(uint160(L2Contracts[10])),
             abi.encodeWithSignature(
                 "forceClose(uint256,address,address,uint256,uint256)",
                 channelId,
-                owner1,
-                owner2,
+                owners[0],
+                owners[1],
+                amount1,
+                amount2
+            ),
+            uint32(gasLimit) // use whatever gas limit you want
+        );
+    }
+
+    // 0 gas fee
+    function MantleL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
+        mantleMessenger.sendMessage{value: value}(
+            address(uint160(L2Contracts[5000])),
+            abi.encodeWithSignature(
+                "forceClose(uint256,address,address,uint256,uint256)",
+                channelId,
+                owners[0],
+                owners[1],
                 amount1,
                 amount2
             ),
@@ -227,7 +250,7 @@ contract L1Manager is Ownable, Channel {
     }
     
     // submit cost + gasPrice * gasLimit <= msg.value
-    function ARBL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
+    function ARBL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
         arbMessenger.createRetryableTicket{value: value}(
             address(uint160(L2Contracts[42161])),
             0,
@@ -235,28 +258,28 @@ contract L1Manager is Ownable, Channel {
             tx.origin,
             tx.origin,
             gasLimit,
-            (value / 2) / gasLimit - 10,
+            (value / 2) / gasLimit,
             abi.encodeWithSignature(
                 "forceClose(uint256,address,address,uint256,uint256)",
                 channelId,
-                owner1,
-                owner2,
-                amount1,
+                owners[0],
+                owners[1],
+                amount1, 
                 amount2
             )
         );
     }
     
     // msg.value > L2Gasprice * gasLimit, L2Gasprice 由消息合约计算得到
-    function ZKL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
+    function ZKL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
         zkMessenger.requestL2Transaction{value: value}(
             address(uint160(L2Contracts[324])),
             0,
             abi.encodeWithSignature(
                 "forceClose(uint256,address,address,uint256,uint256)",
                 channelId,
-                owner1,
-                owner2,
+                owners[0],
+                owners[1],
                 amount1,
                 amount2
             ),
@@ -267,7 +290,7 @@ contract L1Manager is Ownable, Channel {
         );
     }
 
-    function PolyL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
+    function PolyL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
         polyMessenger.bridgeMessage{value: value}(
             1,
             address(uint160(L2Contracts[1101])),
@@ -275,23 +298,23 @@ contract L1Manager is Ownable, Channel {
             abi.encodeWithSignature(
                 "forceClose(uint256,address,address,uint256,uint256)",
                 channelId,
-                owner1,
-                owner2,
+                owners[0],
+                owners[1],
                 amount1,
                 amount2
             )
         );
     }
 
-    function ScrollL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
-        scrollMessenger.depositETHAndCall{value: value}(
+    function ScrollL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
+        scrollMessenger.sendMessage{value: value}(
             address(uint160(L2Contracts[534352])),
             0,
             abi.encodeWithSignature(
                 "forceClose(uint256,address,address,uint256,uint256)",
                 channelId,
-                owner1,
-                owner2,
+                owners[0],
+                owners[1],
                 amount1,
                 amount2
             ),
@@ -299,26 +322,26 @@ contract L1Manager is Ownable, Channel {
         );
     }
 
-    function StarknetL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
+    function StarknetL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
         uint256 selector = 0xdead;
         uint256[] memory payload = new uint256[](5);
         payload[0] = channelId;
-        payload[1] = uint256(uint160(owner1));
-        payload[2] = uint256(uint160(owner2));
+        payload[1] = uint256(uint160(owners[0]));
+        payload[2] = uint256(uint160(owners[1]));
         payload[3] = amount1;
         payload[4] = amount2;
         // Sending the message
         startnetMessenger.sendMessageToL2{value: value}(L2Contracts[1111], selector, payload);
     }
 
-    function MetisL2Message(uint256 value, uint256 channelId, address owner1, address owner2, uint256 amount1, uint256 amount2) private {
+    function MetisL2Message(uint256 value, uint256 channelId, address[2] memory owners, uint256 amount1, uint256 amount2) private {
         metisMessenger.sendMessage{value: value}(
             address(uint160(L2Contracts[1088])),
             abi.encodeWithSignature(
                 "forceClose(uint256,address,address,uint256,uint256)",
                 channelId,
-                owner1,
-                owner2,
+                owners[0],
+                owners[1],
                 amount1,
                 amount2
             ),

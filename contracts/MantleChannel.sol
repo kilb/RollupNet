@@ -7,12 +7,12 @@ interface IMessenger {
     function xDomainMessageSender() external returns (address);
 }
 
-contract OPChannel is L2Channel {
+contract MantleChannel is L2Channel {
     address public L1Contract;
     //testnet & mainnet 0x4200000000000000000000000000000000000007
     IMessenger public ovmL2CrossDomainMessenger;
 
-    constructor(address _l1) L2Channel(10) {
+    constructor(address _l1) L2Channel(5000) {
         L1Contract = _l1;
         ovmL2CrossDomainMessenger = IMessenger(0x4200000000000000000000000000000000000007);
     }
